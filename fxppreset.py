@@ -3,6 +3,8 @@ import json
 import re
 import struct
 from typing import Any, ByteString, Dict, List
+from collections import OrderedDict, defaultdict
+
 
 from lxml import etree
 from tqdm import tqdm
@@ -54,7 +56,8 @@ class PatchHeader:
 
 def convert_xml_declaration_quotes(xml_string: str) -> str:
     # Define the regex pattern to match the XML declaration
-    pattern = r"(<\?xml[^>]*\?>)"
+    # Include trailing whitespace including \n, \r, \t, and space
+    pattern = r'(<\?xml[^>]*\?>)'
 
     # Function to replace " with ' in the matched XML declaration
     def replace_quotes(match):
@@ -62,80 +65,72 @@ def convert_xml_declaration_quotes(xml_string: str) -> str:
 
     # Use re.sub with the pattern and replacement function
     result = re.sub(pattern, replace_quotes, xml_string)
+    result = result.replace("utf-8", "UTF-8")
 
     return result
 
+def xml_to_json(xml_str: str) -> dict:
+    parser = etree.XMLParser(remove_blank_text=True)
+    root = etree.XML(xml_str.encode('utf-8'), parser)
+    json_dict = _element_to_ordered_dict(root)
+    return json_dict
+
+def _element_to_ordered_dict(element) -> OrderedDict:
+    elem_dict = OrderedDict({element.tag: OrderedDict() if element.attrib else None})
+    children = list(element)
+    if children:
+        dd = defaultdict(list)
+        for dc in map(_element_to_ordered_dict, children):
+            for k, v in dc.items():
+                dd[k].append(v)
+        elem_dict[element.tag] = OrderedDict({k: v[0] if len(v) == 1 else v for k, v in dd.items()})
+    if element.attrib:
+        elem_dict[element.tag].update(('@' + k, v) for k, v in element.attrib.items())
+    if element.text:
+        text = element.text.strip()
+        if children or element.attrib:
+            if text:
+                elem_dict[element.tag]['#text'] = text
+        else:
+            elem_dict[element.tag] = text
+    return elem_dict
+
+def json_to_xml(json_obj: dict) -> str:
+    root_tag, root_content = list(json_obj.items())[0]
+    root_elem = etree.Element(root_tag)
+    _ordered_dict_to_element(root_elem, root_content)
+    xml_bytes = etree.tostring(root_elem, encoding='utf-8', xml_declaration=True, standalone=True)
+    xml_str = xml_bytes.decode('utf-8')
+    xml_str = convert_xml_declaration_quotes(xml_str)
+    xml_str = handle_special_characters(xml_str)
+    xml_str = re.sub(r'/>', ' />', xml_str)
+    xml_str = xml_str.replace("?>", " ?>")
+    # Only happens after initial XML header I think
+    xml_str = xml_str.replace(">\n<", "><")
+    return xml_str
+
+def _ordered_dict_to_element(parent, content):
+    if isinstance(content, OrderedDict):
+        for key, value in content.items():
+            if key.startswith('@'):
+                parent.set(key[1:], value)
+            elif key == '#text':
+                parent.text = value
+            else:
+                child = etree.SubElement(parent, key)
+                _ordered_dict_to_element(child, value)
+    elif isinstance(content, list):
+        for value in content:
+            child = etree.SubElement(parent, parent.tag)
+            _ordered_dict_to_element(child, value)
+    else:
+        parent.text = content
 
 def handle_special_characters(xml_str: str) -> str:
     # Replace specific characters with their XML entities
     xml_str = xml_str.replace("&#13;", "&#x0D;")
     xml_str = xml_str.replace("&#10;", "&#x0A;")
     return xml_str
-
-
-def xml_to_json(xml_str: str) -> str:
-    xml_bytes = xml_str.encode("utf-8")  # Convert string to bytes
-    parser = etree.XMLParser(remove_blank_text=True)
-    root = etree.XML(xml_bytes, parser)
-
-    def _element_to_dict(element):
-        elem_dict = {element.tag: {}}
-        # Add attributes if present
-        if element.attrib:
-            elem_dict[element.tag]["@attributes"] = dict(element.attrib)
-        # Add text if present
-        if element.text and element.text.strip():
-            elem_dict[element.tag]["#text"] = element.text.strip()
-        # Add children if present
-        children = list(element)
-        if children:
-            child_dict = {}
-            for child in children:
-                child_elem_dict = _element_to_dict(child)
-                for key, value in child_elem_dict.items():
-                    if key not in child_dict:
-                        child_dict[key] = []
-                    child_dict[key].append(value)
-            elem_dict[element.tag]["children"] = child_dict
-        return elem_dict
-
-    return json.dumps(_element_to_dict(root), indent=4)
-
-
-def json_to_xml(json_str: str) -> str:
-    def _dict_to_element(parent, dict_obj):
-        for tag, content in dict_obj.items():
-            if tag == "@attributes":
-                for key, value in content.items():
-                    parent.set(key, value)
-            elif tag == "#text":
-                parent.text = content
-            elif tag == "children":
-                for child_tag, child_list in content.items():
-                    for child_content in child_list:
-                        element = etree.SubElement(parent, child_tag)
-                        _dict_to_element(element, child_content)
-            else:
-                element = etree.SubElement(parent, tag)
-                _dict_to_element(element, content)
-
-    json_obj = json.loads(json_str)
-    root_tag = list(json_obj.keys())[0]
-    root = etree.Element(root_tag)
-    _dict_to_element(root, json_obj[root_tag])
-
-    xml_bytes = etree.tostring(
-        root, xml_declaration=True, encoding="UTF-8", standalone=True
-    )
-    xml_str = xml_bytes.decode("utf-8")
-    # Add space before the trailing slash for self-closing tags
-    xml_str = xml_str.replace("/>", " />")
-    xml_str = xml_str.replace("?>", " ?>")
-    xml_str = xml_str.replace("\n", "")
-    xml_str = convert_xml_declaration_quotes(xml_str)
-    xml_str = handle_special_characters(xml_str)
-    return xml_str
-
 
 @typechecked
 class FXP:
@@ -177,13 +172,20 @@ class FXP:
         self.xmlContent: str = xmlContent
         # self.xmlContent: bytes = xmlContent
         # print(self.xmlContent)
-        open("1.xml", "w").write(self.xmlContent)
+        #open("1.xml", "w").write(self.xmlContent)
+        open("1.xml", "w").write(self.xmlContent.replace("><", ">\n<"))
         self.wavetables: List[ByteString] = wavetables
 
         # Parse XML and convert to JSON
         json_output = xml_to_json(self.xmlContent)
         xml_output = json_to_xml(json_output)
-        open("2.xml", "w").write(xml_output)
+        xml_output = xml_output.replace("<entry>", "").replace("</entry>", "")
+        xml_output = xml_output.replace("<modrouting>", "").replace("</modrouting>", "")
+        xml_output = xml_output.replace("<sequence>", "").replace("</sequence>", "")
+        xml_output = xml_output.replace("<mseg>", "").replace("</mseg>", "")
+        xml_output = xml_output.replace("<segment>", "").replace("</segment>", "")
+        open("2.xml", "w").write(xml_output.replace("><", ">\n<"))
+        #open("2.xml", "w").write(xml_output)
         # < <meta name="Kalimba Attempt" category="Rare Earth\Percussion" comment='Based on the &quot;Drum One&quot; preset.' author="Leonard Bowman" />
         # < <meta name="SY 80&apos;s Future Key WT" category="Emu/Synth" comment="" author="The Emu" />
         assert xml_output == self.xmlContent.replace("'", '"').replace('&apos;', "'"), "XML to JSON to XML conversion failed"
