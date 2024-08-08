@@ -59,15 +59,15 @@ class FXP:
         fxId: int,
         fxVersion: int,
         numPrograms: int,
-        # prgName: str,
-        prgName: bytes,
+        prgName: str,
+        # prgName: bytes,
         chunkSize: int,
         patchHeader: PatchHeader,
         xmlContent: str,
         # xmlContent: bytes,
         wavetables: List[ByteString],
     ):
-        # assert len(prgName.encode('utf-8')) <= 28, "Program name must be at most 28 bytes long"
+        assert len(prgName.encode('utf-8')) <= 28, "Program name must be at most 28 bytes long"
 
         self.chunkmagic: bytes = chunkmagic
         assert self.chunkmagic == b"CcnK", "Chunk magic must be 'CcnK'"
@@ -79,8 +79,8 @@ class FXP:
         self.fxId: int = fxId
         self.fxVersion: int = fxVersion
         self.numPrograms: int = numPrograms
-        # self.prgName: str = prgName
-        self.prgName: bytes = prgName
+        self.prgName: str = prgName
+        # self.prgName: bytes = prgName
         self.chunkSize: int = chunkSize
         self.patchHeader: PatchHeader = patchHeader
         self.xmlContent: str = xmlContent
@@ -98,8 +98,8 @@ class FXP:
             self.fxId,
             self.fxVersion,
             self.numPrograms,
-            # self.prgName.encode('utf-8'),
-            self.prgName,
+            self.prgName.encode('utf-8'),
+            # self.prgName,
             self.chunkSize,
         )
 
@@ -146,7 +146,7 @@ class FXP:
                 92 + patchHeader.xmlSize :
             ]  # f.read()
 
-            # assert len(prgName.strip(b'\x00')) <= 28, "Program name must be at most 28 bytes long"
+            assert len(prgName.strip(b'\x00')) <= 28, "Program name must be at most 28 bytes long"
 
         return FXP(
             chunkmagic,
@@ -156,8 +156,8 @@ class FXP:
             fxId,
             fxVersion,
             numPrograms,
-            prgName,
-            # prgName.strip(b'\x00').decode('utf-8'),
+            # prgName,
+            prgName.strip(b'\x00').decode('utf-8'),
             chunkSize,
             patchHeader,
             # xml_content,
