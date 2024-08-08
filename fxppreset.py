@@ -1,8 +1,14 @@
+import json
 import struct
 from typing import ByteString, List
 
-import pytinyxml2 as xml
 from typeguard import typechecked
+from collections import defaultdict
+
+
+from lxml import etree
+from typing import Any, Dict
+
 
 # TODO: FXPHeader
 
@@ -48,6 +54,62 @@ class PatchHeader:
         return b
 
 
+def xml_to_json(xml_str: str) -> str:
+    xml_bytes = xml_str.encode('utf-8')  # Convert string to bytes
+    parser = etree.XMLParser(remove_blank_text=True)
+    root = etree.XML(xml_bytes, parser)
+
+    def _element_to_dict(element):
+        elem_dict = {element.tag: {}}
+        # Add attributes if present
+        if element.attrib:
+            elem_dict[element.tag]["@attributes"] = dict(element.attrib)
+        # Add text if present
+        if element.text and element.text.strip():
+            elem_dict[element.tag]["#text"] = element.text.strip()
+        # Add children if present
+        children = list(element)
+        if children:
+            child_dict = {}
+            for child in children:
+                child_elem_dict = _element_to_dict(child)
+                for key, value in child_elem_dict.items():
+                    if key not in child_dict:
+                        child_dict[key] = []
+                    child_dict[key].append(value)
+            elem_dict[element.tag]["children"] = child_dict
+        return elem_dict
+
+    return json.dumps(_element_to_dict(root), indent=4)
+
+
+def json_to_xml(json_str: str) -> str:
+    def _dict_to_element(parent, dict_obj):
+        for tag, content in dict_obj.items():
+            if tag == "@attributes":
+                for key, value in content.items():
+                    parent.set(key, value)
+            elif tag == "#text":
+                parent.text = content
+            elif tag == "children":
+                for child_tag, child_list in content.items():
+                    for child_content in child_list:
+                        element = etree.SubElement(parent, child_tag)
+                        _dict_to_element(element, child_content)
+            else:
+                element = etree.SubElement(parent, tag)
+                _dict_to_element(element, content)
+
+    json_obj = json.loads(json_str)
+    root_tag = list(json_obj.keys())[0]
+    root = etree.Element(root_tag)
+    _dict_to_element(root, json_obj[root_tag])
+
+    xml_bytes = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+    return xml_bytes.decode('utf-8')
+
+
+
 @typechecked
 class FXP:
     def __init__(
@@ -67,7 +129,9 @@ class FXP:
         # xmlContent: bytes,
         wavetables: List[ByteString],
     ):
-        assert len(prgName.encode('utf-8')) <= 28, "Program name must be at most 28 bytes long"
+        assert (
+            len(prgName.encode("utf-8")) <= 28
+        ), "Program name must be at most 28 bytes long"
 
         self.chunkmagic: bytes = chunkmagic
         assert self.chunkmagic == b"CcnK", "Chunk magic must be 'CcnK'"
@@ -86,7 +150,14 @@ class FXP:
         self.xmlContent: str = xmlContent
         # self.xmlContent: bytes = xmlContent
         print(self.xmlContent)
+        open("1.xml", "w").write(self.xmlContent)
         self.wavetables: List[ByteString] = wavetables
+
+        # Parse XML and convert to JSON
+        json_output = xml_to_json(self.xmlContent)
+        xml_output = json_to_xml(json_output)
+        open("2.xml", "w").write(xml_output)
+        assert xml_output == self.xmlContent, "XML to JSON to XML conversion failed"
 
     def save(self, filename: str) -> None:
         fxp_header: ByteString = struct.pack(
@@ -98,7 +169,7 @@ class FXP:
             self.fxId,
             self.fxVersion,
             self.numPrograms,
-            self.prgName.encode('utf-8'),
+            self.prgName.encode("utf-8"),
             # self.prgName,
             self.chunkSize,
         )
@@ -110,7 +181,7 @@ class FXP:
         with open(filename, "wb") as f:
             f.write(fxp_header)
             f.write(self.patchHeader.to_bytes)
-            f.write(self.xmlContent.encode('utf-8'))
+            f.write(self.xmlContent.encode("utf-8"))
             # f.write(self.xmlContent)
             f.write(wavetable_data)
 
@@ -146,7 +217,9 @@ class FXP:
                 92 + patchHeader.xmlSize :
             ]  # f.read()
 
-            assert len(prgName.strip(b'\x00')) <= 28, "Program name must be at most 28 bytes long"
+            assert (
+                len(prgName.strip(b"\x00")) <= 28
+            ), "Program name must be at most 28 bytes long"
 
         return FXP(
             chunkmagic,
@@ -157,11 +230,11 @@ class FXP:
             fxVersion,
             numPrograms,
             # prgName,
-            prgName.strip(b'\x00').decode('utf-8'),
+            prgName.strip(b"\x00").decode("utf-8"),
             chunkSize,
             patchHeader,
             # xml_content,
-            xml_content.decode('utf-8'),
+            xml_content.decode("utf-8"),
             [wavetables],
         )
 
