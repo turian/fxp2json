@@ -63,8 +63,8 @@ class FXP:
         prgName: bytes,
         chunkSize: int,
         patchHeader: PatchHeader,
-        # xmlContent: str,
-        xmlContent: bytes,
+        xmlContent: str,
+        # xmlContent: bytes,
         wavetables: List[ByteString],
     ):
         # assert len(prgName.encode('utf-8')) <= 28, "Program name must be at most 28 bytes long"
@@ -83,9 +83,9 @@ class FXP:
         self.prgName: bytes = prgName
         self.chunkSize: int = chunkSize
         self.patchHeader: PatchHeader = patchHeader
-        # self.xmlContent: str = xmlContent
-        self.xmlContent: bytes = xmlContent
-        # print(self.xmlContent)
+        self.xmlContent: str = xmlContent
+        # self.xmlContent: bytes = xmlContent
+        print(self.xmlContent)
         self.wavetables: List[ByteString] = wavetables
 
     def save(self, filename: str) -> None:
@@ -110,8 +110,8 @@ class FXP:
         with open(filename, "wb") as f:
             f.write(fxp_header)
             f.write(self.patchHeader.to_bytes)
-            # f.write(self.xmlContent.encode('utf-8'))
-            f.write(self.xmlContent)
+            f.write(self.xmlContent.encode('utf-8'))
+            # f.write(self.xmlContent)
             f.write(wavetable_data)
 
     @staticmethod
@@ -160,8 +160,8 @@ class FXP:
             # prgName.strip(b'\x00').decode('utf-8'),
             chunkSize,
             patchHeader,
-            xml_content,
-            # xml_content.decode('utf-8'),
+            # xml_content,
+            xml_content.decode('utf-8'),
             [wavetables],
         )
 
