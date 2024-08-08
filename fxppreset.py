@@ -57,10 +57,15 @@ def compare_json(json1, json2):
     return dict1 == dict2
 
 
+# TODO: Also try lxml
 @typechecked
 def verify_xml(xml_str: str) -> None:
+    open("1.xml", "wt").write(xml_str)
     json_str_tinyxml2 = pytinyxml2_json.xml_to_json(xml_str)
     json_str_xmltodict = xmltodict_json.xml_to_json(xml_str)
+
+    open("tinyxml2.json", "wt").write(json.dumps(json.loads(json_str_tinyxml2), indent=4))
+    open("xmltodict.json", "wt").write(json.dumps(json.loads(json_str_xmltodict), indent=4))
     assert compare_json(json_str_tinyxml2, json_str_xmltodict), "JSON strings differ"
 
     # TODO: Other variations?

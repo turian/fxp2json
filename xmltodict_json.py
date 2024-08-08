@@ -5,7 +5,7 @@ import xmltodict
 
 def xml_to_json(xml_str):
     # Parse the XML to an ordered dictionary
-    parsed_dict = xmltodict.parse(xml_str, dict_constructor=dict)
+    parsed_dict = xmltodict.parse(xml_str, dict_constructor=dict, attr_prefix="", force_list=True)
     return json.dumps(parsed_dict, indent=4)
 
 
