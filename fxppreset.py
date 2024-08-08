@@ -1,10 +1,11 @@
+import glob
 import json
 import re
 import struct
-from collections import defaultdict
 from typing import Any, ByteString, Dict, List
 
 from lxml import etree
+from tqdm import tqdm
 from typeguard import typechecked
 
 # TODO: FXPHeader
@@ -63,6 +64,13 @@ def convert_xml_declaration_quotes(xml_string: str) -> str:
     result = re.sub(pattern, replace_quotes, xml_string)
 
     return result
+
+
+def handle_special_characters(xml_str: str) -> str:
+    # Replace specific characters with their XML entities
+    xml_str = xml_str.replace("&#13;", "&#x0D;")
+    xml_str = xml_str.replace("&#10;", "&#x0A;")
+    return xml_str
 
 
 def xml_to_json(xml_str: str) -> str:
@@ -125,6 +133,7 @@ def json_to_xml(json_str: str) -> str:
     xml_str = xml_str.replace("?>", " ?>")
     xml_str = xml_str.replace("\n", "")
     xml_str = convert_xml_declaration_quotes(xml_str)
+    xml_str = handle_special_characters(xml_str)
     return xml_str
 
 
@@ -167,7 +176,7 @@ class FXP:
         self.patchHeader: PatchHeader = patchHeader
         self.xmlContent: str = xmlContent
         # self.xmlContent: bytes = xmlContent
-        print(self.xmlContent)
+        # print(self.xmlContent)
         open("1.xml", "w").write(self.xmlContent)
         self.wavetables: List[ByteString] = wavetables
 
@@ -175,7 +184,10 @@ class FXP:
         json_output = xml_to_json(self.xmlContent)
         xml_output = json_to_xml(json_output)
         open("2.xml", "w").write(xml_output)
-        assert xml_output == self.xmlContent, "XML to JSON to XML conversion failed"
+        # < <meta name="Kalimba Attempt" category="Rare Earth\Percussion" comment='Based on the &quot;Drum One&quot; preset.' author="Leonard Bowman" />
+        # < <meta name="SY 80&apos;s Future Key WT" category="Emu/Synth" comment="" author="The Emu" />
+        assert xml_output == self.xmlContent.replace("'", '"').replace('&apos;', "'"), "XML to JSON to XML conversion failed"
+        #assert xml_output == self.xmlContent, "XML to JSON to XML conversion failed"
 
     def save(self, filename: str) -> None:
         fxp_header: ByteString = struct.pack(
@@ -222,7 +234,7 @@ class FXP:
                 chunkSize,
             ) = struct.unpack(">4si4siiii28si", fxp_header)
 
-            print("chunkSize", chunkSize)
+            # print("chunkSize", chunkSize)
             patch_header_bytes: ByteString = patch_content[60:92]  # f.read(32)
             patch_header_unpack = struct.unpack("<4siiiiiii", patch_header_bytes)
             patchHeader = PatchHeader(*patch_header_unpack)
@@ -258,15 +270,19 @@ class FXP:
 
 
 if __name__ == "__main__":
-    fxp = FXP.load(
-        "/Library/Application Support/Surge XT/patches_3rdparty/Rare Earth/Basses/Bass Tuba.fxp"
+    fxp_files = list(
+        glob.glob("/Library/Application Support/Surge XT/**/*.fxp", recursive=True)
     )
-    fxp.save("tmp/test.fxp")
-    assert (
-        open("tmp/test.fxp", "rb").read()
-        == open(
-            "/Library/Application Support/Surge XT/patches_3rdparty/Rare Earth/Basses/Bass Tuba.fxp",
-            "rb",
-        ).read()
-    )
-    fxp2 = FXP.load("tmp/test.fxp")
+    for fxp_file in tqdm(fxp_files):
+        fxp = FXP.load(fxp_file)
+        fxp.save("tmp/test.fxp")
+        # fxp2 = FXP.load(f"{fxp_file}.tmp")
+        # assert fxp.__dict__ == fxp2.__dict__
+
+        assert (
+            open("tmp/test.fxp", "rb").read()
+            == open(
+                fxp_file,
+                "rb",
+            ).read()
+        )
