@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 
 from lxml import etree
 
@@ -32,5 +33,6 @@ class SAXHandler:
 def xml_to_json(xml_string: str) -> str:
     handler = SAXHandler()
     parser = etree.XMLParser(target=handler)
-    etree.XML(xml_string, parser)
+    xml_bytes = BytesIO(xml_string.encode("utf-8"))
+    etree.XML(xml_bytes, parser)
     return json.dumps(handler.stack[0], indent=4)

@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 
 from lxml import etree
 
@@ -6,7 +7,8 @@ from lxml_etree_json import json_to_xml
 
 
 def xml_to_json(xml_string: str) -> str:
-    context = etree.iterparse(xml_string, events=("start", "end"))
+    xml_bytes = BytesIO(xml_string.encode("utf-8"))
+    context = etree.iterparse(xml_bytes, events=("start", "end"))
     root = None
     stack = []
     for event, elem in context:

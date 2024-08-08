@@ -91,7 +91,7 @@ def xml_to_json(xml_str: str) -> Dict[str, str]:
         else:
             print(f"Module {module_name} does not have an 'xml_to_json' method")
 
-        return module_to_json
+    return module_to_json
 
 
 # TODO: Also try lxml
