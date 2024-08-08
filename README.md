@@ -5,8 +5,12 @@ FXP presets, to and from JSON
 
 TODO: typechecked everything
 
+Make sure {} is good not null
+
 XML parsing:
     BeautifulSoup
+
+https://github.com/vinitkumar/json2xml
 
 XML stuff:
 Consider also:

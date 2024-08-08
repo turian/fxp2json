@@ -11,7 +11,7 @@ class SAXHandler:
         self.data = None
 
     def start(self, tag, attrib):
-        self.stack.append({tag: {"@{}".format(k): v for k, v in attrib.items()}})
+        self.stack.append({tag: {"{}".format(k): v for k, v in attrib.items()}})
 
     def end(self, tag):
         current = self.stack.pop()
@@ -20,7 +20,14 @@ class SAXHandler:
             self.data = None
         if self.stack:
             parent = self.stack[-1]
-            parent[list(parent.keys())[0]].setdefault(tag, []).append(current[tag])
+            parent_key = list(parent.keys())[0]
+            if tag not in parent[parent_key]:
+                parent[parent_key][tag] = current[tag]
+            else:
+                if isinstance(parent[parent_key][tag], list):
+                    parent[parent_key][tag].append(current[tag])
+                else:
+                    parent[parent_key][tag] = [parent[parent_key][tag], current[tag]]
         else:
             self.stack.append(current)
 
@@ -32,8 +39,25 @@ class SAXHandler:
         return self.stack[0]
 
 
+def simplify_json(obj):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if isinstance(value, list) and len(value) == 1:
+                obj[key] = value[0]
+            elif isinstance(value, dict) and value == {}:
+                obj[key] = None
+            elif isinstance(value, dict) or isinstance(value, list):
+                simplify_json(value)
+    elif isinstance(obj, list):
+        for i in range(len(obj)):
+            if isinstance(obj[i], dict) or isinstance(obj[i], list):
+                simplify_json(obj[i])
+
+
 def xml_to_json(xml_string: str) -> str:
     handler = SAXHandler()
     parser = etree.XMLParser(target=handler)
     etree.XML(xml_string.encode("utf-8"), parser)
-    return json.dumps(handler.stack[0], indent=4)
+    json_obj = handler.close()
+    simplify_json(json_obj)
+    return json.dumps(json_obj, indent=4)

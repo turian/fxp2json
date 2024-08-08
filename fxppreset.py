@@ -67,6 +67,7 @@ def compare_json(json1, json2):
 
 @typechecked
 def xml_to_json(xml_str: str) -> Dict[str, str]:
+    xml_str = '<a_octave type="0" value="-1" /><a_pitch type="2" value="0.00000000000000" extend_range="0"><modrouting source="17" depth="0.123760" muted="0" source_index="0" /><modrouting source="18" depth="6.697501" muted="0" source_index="0" /></a_pitch><a_portamento type="2" value="-8.00000000000000" porta_const_rate="0" porta_gliss="0" porta_retrigger="0" porta_curve="0" /><a_osc1_type type="0" value="6" /><a_osc1_octave type="0" value="0" />'
     module_to_json = {}
     # Iterate over modules, convert XML to JSON, and save to file
     for module_name in modules:
