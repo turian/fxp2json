@@ -1,11 +1,19 @@
+import importlib
 import json
 import struct
-from typing import ByteString, List
+from typing import ByteString, Dict, List
 
 from typeguard import typechecked
 
-import pytinyxml2_json
-import xmltodict_json
+# List of module names
+modules = [
+    "bs4_json",
+    "lxml_etree_iterparse_json",
+    "lxml_etree_json",
+    "lxml_etree_sax_json",
+    "pytinyxml2_json",
+    "xmltodict_json",
+]
 
 # TODO: FXPHeader
 
@@ -57,15 +65,52 @@ def compare_json(json1, json2):
     return dict1 == dict2
 
 
+@typechecked
+def xml_to_json(xml_str: str) -> Dict[str, str]:
+    module_to_json = {}
+    # Iterate over modules, convert XML to JSON, and save to file
+    for module_name in modules:
+        module = importlib.import_module(module_name)
+
+        if hasattr(module, "xml_to_json"):
+            try:
+                # Convert XML to JSON
+                json_str = module.xml_to_json(xml_str)
+
+                # Define the filename
+                json_filename = f"{module_name}.json"
+
+                with open(json_filename, "w", encoding="utf-8") as f:
+                    f.write(json.dumps(json.loads(json_str), indent=4))
+
+                print(f"Successfully saved JSON to {json_filename}")
+
+                module_to_json[module_name] = json_str
+            except Exception as e:
+                print(f"Failed to process module {module_name}: {e}")
+        else:
+            print(f"Module {module_name} does not have an 'xml_to_json' method")
+
+        return module_to_json
+
+
 # TODO: Also try lxml
 @typechecked
 def verify_xml(xml_str: str) -> None:
     open("1.xml", "wt").write(xml_str)
+
+    xml_to_json(xml_str)
+
+    """
     json_str_tinyxml2 = pytinyxml2_json.xml_to_json(xml_str)
     json_str_xmltodict = xmltodict_json.xml_to_json(xml_str)
 
-    open("tinyxml2.json", "wt").write(json.dumps(json.loads(json_str_tinyxml2), indent=4))
-    open("xmltodict.json", "wt").write(json.dumps(json.loads(json_str_xmltodict), indent=4))
+    open("tinyxml2.json", "wt").write(
+        json.dumps(json.loads(json_str_tinyxml2), indent=4)
+    )
+    open("xmltodict.json", "wt").write(
+        json.dumps(json.loads(json_str_xmltodict), indent=4)
+    )
     assert compare_json(json_str_tinyxml2, json_str_xmltodict), "JSON strings differ"
 
     # TODO: Other variations?
@@ -97,6 +142,7 @@ def verify_xml(xml_str: str) -> None:
     assert compare_json(
         json_str_tinyxml2, json_str_xmltodict_xml_str_xmltodict
     ), "JSON strings differ"
+    """
 
 
 @typechecked
