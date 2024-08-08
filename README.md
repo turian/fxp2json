@@ -5,6 +5,8 @@ FXP presets, to and from JSON
 
 TODO: typechecked everything
 
+Remove redundant massage functions or put in one module
+
 Make sure {} is good not null
 
 XML parsing:

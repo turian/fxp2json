@@ -6,6 +6,22 @@ from lxml import etree
 from lxml_etree_json import json_to_xml
 
 
+# Flatten lists with single elements
+def flatten_json(obj):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if isinstance(value, list) and len(value) == 1:
+                obj[key] = value[0]
+            elif isinstance(value, dict) and value == {}:
+                obj[key] = None
+            elif isinstance(value, (dict, list)):
+                flatten_json(value)
+    elif isinstance(obj, list):
+        for i in range(len(obj)):
+            if isinstance(obj[i], (dict, list)):
+                flatten_json(obj[i])
+
+
 def xml_to_json(xml_string: str) -> str:
     xml_bytes = BytesIO(xml_string.encode("utf-8"))
     context = etree.iterparse(xml_bytes, events=("start", "end"))
@@ -36,21 +52,6 @@ def xml_to_json(xml_string: str) -> str:
             if not stack:
                 root = current
             elem.clear()
-
-    # Flatten lists with single elements
-    def flatten_json(obj):
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                if isinstance(value, list) and len(value) == 1:
-                    obj[key] = value[0]
-                elif isinstance(value, dict) and value == {}:
-                    obj[key] = None
-                elif isinstance(value, (dict, list)):
-                    flatten_json(value)
-        elif isinstance(obj, list):
-            for i in range(len(obj)):
-                if isinstance(obj[i], (dict, list)):
-                    flatten_json(obj[i])
 
     flatten_json(root)
     return json.dumps(root, indent=4)

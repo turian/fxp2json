@@ -2,6 +2,8 @@ import json
 
 import pytinyxml2 as tinyxml2
 
+from lxml_etree_iterparse_json import flatten_json
+
 
 def dict_to_element(doc, parent, content):
     for key, value in content.items():
@@ -61,7 +63,9 @@ def xml_to_json(xml_str):
         return elem_dict
 
     root = xml_doc.RootElement()
-    return json.dumps(element_to_dict(root), indent=4)
+    root_content = element_to_dict(root)
+    flatten_json(root_content)
+    return json.dumps(root_content, indent=4)
 
 
 # Function to convert JSON back to XML using tinyxml2
