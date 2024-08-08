@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from io import BytesIO
 
 from lxml import etree
 
@@ -19,7 +18,9 @@ def xml_to_json(xml_string: str) -> str:
             }
         if element.attrib:
             elem_dict[element.tag].update(
-                ("@" + k, v) for k, v in element.attrib.items()
+                # ("@" + k, v) for k, v in element.attrib.items()
+                (k, v)
+                for k, v in element.attrib.items()
             )
         if element.text:
             text = element.text.strip()
@@ -30,8 +31,7 @@ def xml_to_json(xml_string: str) -> str:
                 elem_dict[element.tag] = text
         return elem_dict
 
-    xml_bytes = BytesIO(xml_string.encode("utf-8"))
-    root = etree.fromstring(xml_bytes)
+    root = etree.fromstring(xml_string.encode("utf-8"))
     return json.dumps(element_to_dict(root), indent=4)
 
 

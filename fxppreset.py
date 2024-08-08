@@ -73,23 +73,23 @@ def xml_to_json(xml_str: str) -> Dict[str, str]:
         module = importlib.import_module(module_name)
 
         if hasattr(module, "xml_to_json"):
-            try:
-                # Convert XML to JSON
-                json_str = module.xml_to_json(xml_str)
+            #            try:
+            # Convert XML to JSON
+            json_str = module.xml_to_json(xml_str)
 
-                # Define the filename
-                json_filename = f"{module_name}.json"
+            # Define the filename
+            json_filename = f"{module_name}.json"
 
-                with open(json_filename, "w", encoding="utf-8") as f:
-                    f.write(json.dumps(json.loads(json_str), indent=4))
+            with open(json_filename, "w", encoding="utf-8") as f:
+                f.write(json.dumps(json.loads(json_str), indent=4, sort_keys=True))
 
-                print(f"Successfully saved JSON to {json_filename}")
+            print(f"Successfully saved JSON to {json_filename}")
 
-                module_to_json[module_name] = json_str
-            except Exception as e:
-                print(f"Failed to process module {module_name}: {e}")
-        else:
-            print(f"Module {module_name} does not have an 'xml_to_json' method")
+            module_to_json[module_name] = json_str
+    #            except Exception as e:
+    #                print(f"Failed to process module {module_name}: {e}")
+    #        else:
+    #            print(f"Module {module_name} does not have an 'xml_to_json' method")
 
     return module_to_json
 

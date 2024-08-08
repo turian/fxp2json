@@ -12,7 +12,8 @@ def xml_to_json(xml_string: str) -> str:
         # Add attributes
         if element.attrs:
             elem_dict[element.name].update(
-                {f"@{k}": v for k, v in element.attrs.items()}
+                # {f"@{k}": v for k, v in element.attrs.items()}
+                {f"{k}": v for k, v in element.attrs.items()}
             )
 
         # Add children
