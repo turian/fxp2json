@@ -1,14 +1,11 @@
 import json
+import re
 import struct
-from typing import ByteString, List
-
-from typeguard import typechecked
 from collections import defaultdict
-
+from typing import Any, ByteString, Dict, List
 
 from lxml import etree
-from typing import Any, Dict
-
+from typeguard import typechecked
 
 # TODO: FXPHeader
 
@@ -54,8 +51,22 @@ class PatchHeader:
         return b
 
 
+def convert_xml_declaration_quotes(xml_string: str) -> str:
+    # Define the regex pattern to match the XML declaration
+    pattern = r"(<\?xml[^>]*\?>)"
+
+    # Function to replace " with ' in the matched XML declaration
+    def replace_quotes(match):
+        return match.group(0).replace("'", '"')
+
+    # Use re.sub with the pattern and replacement function
+    result = re.sub(pattern, replace_quotes, xml_string)
+
+    return result
+
+
 def xml_to_json(xml_str: str) -> str:
-    xml_bytes = xml_str.encode('utf-8')  # Convert string to bytes
+    xml_bytes = xml_str.encode("utf-8")  # Convert string to bytes
     parser = etree.XMLParser(remove_blank_text=True)
     root = etree.XML(xml_bytes, parser)
 
@@ -105,9 +116,16 @@ def json_to_xml(json_str: str) -> str:
     root = etree.Element(root_tag)
     _dict_to_element(root, json_obj[root_tag])
 
-    xml_bytes = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
-    return xml_bytes.decode('utf-8')
-
+    xml_bytes = etree.tostring(
+        root, xml_declaration=True, encoding="UTF-8", standalone=True
+    )
+    xml_str = xml_bytes.decode("utf-8")
+    # Add space before the trailing slash for self-closing tags
+    xml_str = xml_str.replace("/>", " />")
+    xml_str = xml_str.replace("?>", " ?>")
+    xml_str = xml_str.replace("\n", "")
+    xml_str = convert_xml_declaration_quotes(xml_str)
+    return xml_str
 
 
 @typechecked
