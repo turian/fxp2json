@@ -5,20 +5,25 @@ import pytinyxml2 as tinyxml2
 
 def dict_to_element(doc, parent, content):
     for key, value in content.items():
-        print(f"Setting attribute '{key}' with value '{value}' of type '{type(value)}'")
         if isinstance(value, dict):
             child = doc.NewElement(key)
             parent.InsertEndChild(child)
             dict_to_element(doc, child, value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    child = doc.NewElement(key)
+                    parent.InsertEndChild(child)
+                    dict_to_element(doc, child, item)
         else:
             if isinstance(value, str):
                 parent.SetAttribute(key, value)
             elif isinstance(value, int):
-                parent.SetAttribute(key, value)
+                parent.SetAttribute(key, str(value))
             elif isinstance(value, bool):
-                parent.SetAttribute(key, value)
+                parent.SetAttribute(key, str(value).lower())
             elif isinstance(value, float):
-                parent.SetAttribute(key, value)
+                parent.SetAttribute(key, str(value))
             else:
                 raise TypeError(
                     f"Unsupported attribute type for key '{key}': {type(value)}"
@@ -39,8 +44,16 @@ def xml_to_json(xml_str):
             attr = attr.Next()
         # Convert child elements
         child = element.FirstChildElement()
+        children = []
         while child:
-            elem_dict[element.Value()].update(element_to_dict(child))
+            child_dict = element_to_dict(child)
+            tag = child.Value()
+            if tag in elem_dict[element.Value()]:
+                if not isinstance(elem_dict[element.Value()][tag], list):
+                    elem_dict[element.Value()][tag] = [elem_dict[element.Value()][tag]]
+                elem_dict[element.Value()][tag].append(child_dict[tag])
+            else:
+                elem_dict[element.Value()].update(child_dict)
             child = child.NextSiblingElement()
         # Convert text
         if element.GetText():
