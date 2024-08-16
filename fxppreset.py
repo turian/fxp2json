@@ -1,9 +1,13 @@
+
+
 import importlib
 import json
 import struct
 from typing import ByteString, Dict, List
 
 from typeguard import typechecked
+
+import pytinyxml2_json as xmljson
 
 # List of module names
 modules = [
@@ -67,7 +71,7 @@ def compare_json(json1, json2):
 
 @typechecked
 def xml_to_json(xml_str: str) -> Dict[str, str]:
-    xml_str = open("test3.xml").read()
+    #xml_str = open("test3.xml").read()
     module_to_json = {}
     # Iterate over modules, convert XML to JSON, and save to file
     for module_name in modules:
@@ -92,14 +96,18 @@ def xml_to_json(xml_str: str) -> Dict[str, str]:
     #        else:
     #            print(f"Module {module_name} does not have an 'xml_to_json' method")
 
+    for module_name in modules:
+        for module_name2 in modules:
+            if module_name != module_name2:
+                continue
+            assert module_to_json[module_name] == module_to_json[module_name2]
+
     return module_to_json
 
 
 # TODO: Also try lxml
 @typechecked
 def verify_xml(xml_str: str) -> None:
-    open("1.xml", "wt").write(xml_str)
-
     xml_to_json(xml_str)
 
     """
@@ -184,7 +192,10 @@ class FXP:
         self.chunkSize: int = chunkSize
         self.patchHeader: PatchHeader = patchHeader
         self.xmlContent: str = xmlContent
+        self.wavetables: List[ByteString] = wavetables
 
+        print(self.xmlContent)
+        open("1.xml", "w").write(self.xmlContent)
         """
         # self.xmlContent: bytes = xmlContent
         print(self.xmlContent)
@@ -199,6 +210,10 @@ class FXP:
         """
 
         verify_xml(self.xmlContent)
+        self.json = xmljson.xml_to_json(self.xmlContent)
+        open("2.xml", "w").write(xmljson.json_to_xml(self.json))
+        verify_xml(xmljson.json_to_xml(self.json))
+
 
     def save(self, filename: str) -> None:
         fxp_header: ByteString = struct.pack(
@@ -222,7 +237,8 @@ class FXP:
         with open(filename, "wb") as f:
             f.write(fxp_header)
             f.write(self.patchHeader.to_bytes)
-            f.write(self.xmlContent.encode("utf-8"))
+            #f.write(self.xmlContent.encode("utf-8"))
+            f.write(xmljson.json_to_xml(self.json).encode("utf-8"))
             # f.write(self.xmlContent)
             f.write(wavetable_data)
 

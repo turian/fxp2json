@@ -18,7 +18,12 @@ def dict_to_element(doc, parent, content):
                     parent.InsertEndChild(child)
                     dict_to_element(doc, child, item)
         else:
-            if isinstance(value, str):
+            # WARNING: This might be wrong
+            if value is None:
+                # Create a self-closing tag for None values
+                child = doc.NewElement(key)
+                parent.InsertEndChild(child)
+            elif isinstance(value, str):
                 parent.SetAttribute(key, value)
             elif isinstance(value, int):
                 parent.SetAttribute(key, str(value))
