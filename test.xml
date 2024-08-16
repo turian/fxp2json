@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<all>
+	<patch type="dict">
+		<parameters type="dict">
+			<a_env1_attack type="dict">
+				<modrouting type="list">
+					<item type="dict">
+						<depth type="str">6.778575</depth>
+						<muted type="str">0</muted>
+						<source type="str">10</source>
+						<source_index type="str">0</source_index>
+					</item>
+					<item type="dict">
+						<depth type="str">-1.903572</depth>
+						<muted type="str">0</muted>
+						<source type="str">1</source>
+						<source_index type="str">0</source_index>
+					</item>
+				</modrouting>
+				<type type="str">2</type>
+				<value type="str">-6.93214082717896</value>
+			</a_env1_attack>
+		</parameters>
+	</patch>
+</all>

@@ -1,8 +1,23 @@
-import struct
-from typing import ByteString, List
 
-import pytinyxml2 as xml
+
+import importlib
+import json
+import struct
+from typing import ByteString, Dict, List
+
 from typeguard import typechecked
+
+import pytinyxml2_json as xmljson
+
+# List of module names
+modules = [
+    "bs4_json",
+    "lxml_etree_iterparse_json",
+    "lxml_etree_json",
+    "lxml_etree_sax_json",
+    "pytinyxml2_json",
+    "xmltodict_json",
+]
 
 # TODO: FXPHeader
 
@@ -48,6 +63,97 @@ class PatchHeader:
         return b
 
 
+def compare_json(json1, json2):
+    dict1 = json.loads(json1)
+    dict2 = json.loads(json2)
+    return dict1 == dict2
+
+
+@typechecked
+def xml_to_json(xml_str: str) -> Dict[str, str]:
+    #xml_str = open("test3.xml").read()
+    module_to_json = {}
+    # Iterate over modules, convert XML to JSON, and save to file
+    for module_name in modules:
+        module = importlib.import_module(module_name)
+
+        if hasattr(module, "xml_to_json"):
+            #            try:
+            # Convert XML to JSON
+            json_str = module.xml_to_json(xml_str)
+
+            # Define the filename
+            json_filename = f"{module_name}.json"
+
+            with open(json_filename, "w", encoding="utf-8") as f:
+                f.write(json.dumps(json.loads(json_str), indent=4, sort_keys=True))
+
+            print(f"Successfully saved JSON to {json_filename}")
+
+            module_to_json[module_name] = json_str
+    #            except Exception as e:
+    #                print(f"Failed to process module {module_name}: {e}")
+    #        else:
+    #            print(f"Module {module_name} does not have an 'xml_to_json' method")
+
+    for module_name in modules:
+        for module_name2 in modules:
+            if module_name != module_name2:
+                continue
+            assert module_to_json[module_name] == module_to_json[module_name2]
+
+    return module_to_json
+
+
+# TODO: Also try lxml
+@typechecked
+def verify_xml(xml_str: str) -> None:
+    xml_to_json(xml_str)
+
+    """
+    json_str_tinyxml2 = pytinyxml2_json.xml_to_json(xml_str)
+    json_str_xmltodict = xmltodict_json.xml_to_json(xml_str)
+
+    open("tinyxml2.json", "wt").write(
+        json.dumps(json.loads(json_str_tinyxml2), indent=4)
+    )
+    open("xmltodict.json", "wt").write(
+        json.dumps(json.loads(json_str_xmltodict), indent=4)
+    )
+    assert compare_json(json_str_tinyxml2, json_str_xmltodict), "JSON strings differ"
+
+    # TODO: Other variations?
+    xml_str_tinyxml2_json_str_tinyxml2 = pytinyxml2_json.json_to_xml(json_str_tinyxml2)
+    xml_str_xmltodict_json_str_tinyxml2 = xmltodict_json.json_to_xml(json_str_tinyxml2)
+
+    json_str_tinyxml2_xml_str_tinyxml2 = pytinyxml2_json.xml_to_json(
+        xml_str_tinyxml2_json_str_tinyxml2
+    )
+    json_str_xmltodict_xml_str_tinyxml2 = xmltodict_json.xml_to_json(
+        xml_str_xmltodict_json_str_tinyxml2
+    )
+    json_str_tinyxml2_xml_str_xmltodict = pytinyxml2_json.xml_to_json(
+        xml_str_tinyxml2_json_str_tinyxml2
+    )
+    json_str_xmltodict_xml_str_xmltodict = xmltodict_json.xml_to_json(
+        xml_str_xmltodict_json_str_tinyxml2
+    )
+
+    assert compare_json(
+        json_str_tinyxml2, json_str_tinyxml2_xml_str_tinyxml2
+    ), "JSON strings differ"
+    assert compare_json(
+        json_str_tinyxml2, json_str_xmltodict_xml_str_tinyxml2
+    ), "JSON strings differ"
+    assert compare_json(
+        json_str_tinyxml2, json_str_tinyxml2_xml_str_xmltodict
+    ), "JSON strings differ"
+    assert compare_json(
+        json_str_tinyxml2, json_str_xmltodict_xml_str_xmltodict
+    ), "JSON strings differ"
+    """
+
+
 @typechecked
 class FXP:
     def __init__(
@@ -67,7 +173,9 @@ class FXP:
         # xmlContent: bytes,
         wavetables: List[ByteString],
     ):
-        assert len(prgName.encode('utf-8')) <= 28, "Program name must be at most 28 bytes long"
+        assert (
+            len(prgName.encode("utf-8")) <= 28
+        ), "Program name must be at most 28 bytes long"
 
         self.chunkmagic: bytes = chunkmagic
         assert self.chunkmagic == b"CcnK", "Chunk magic must be 'CcnK'"
@@ -84,9 +192,28 @@ class FXP:
         self.chunkSize: int = chunkSize
         self.patchHeader: PatchHeader = patchHeader
         self.xmlContent: str = xmlContent
+        self.wavetables: List[ByteString] = wavetables
+
+        print(self.xmlContent)
+        open("1.xml", "w").write(self.xmlContent)
+        """
         # self.xmlContent: bytes = xmlContent
         print(self.xmlContent)
+        open("1.xml", "w").write(self.xmlContent)
         self.wavetables: List[ByteString] = wavetables
+
+        # Parse XML and convert to JSON
+        json_str = xml_to_json(self.xmlContent)
+        xml_str = json_to_xml(json_str)
+        open("2.xml", "w").write(xml_str)
+        assert xml_str == self.xmlContent, "XML to JSON to XML conversion failed"
+        """
+
+        verify_xml(self.xmlContent)
+        self.json = xmljson.xml_to_json(self.xmlContent)
+        open("2.xml", "w").write(xmljson.json_to_xml(self.json))
+        verify_xml(xmljson.json_to_xml(self.json))
+
 
     def save(self, filename: str) -> None:
         fxp_header: ByteString = struct.pack(
@@ -98,7 +225,7 @@ class FXP:
             self.fxId,
             self.fxVersion,
             self.numPrograms,
-            self.prgName.encode('utf-8'),
+            self.prgName.encode("utf-8"),
             # self.prgName,
             self.chunkSize,
         )
@@ -110,7 +237,8 @@ class FXP:
         with open(filename, "wb") as f:
             f.write(fxp_header)
             f.write(self.patchHeader.to_bytes)
-            f.write(self.xmlContent.encode('utf-8'))
+            #f.write(self.xmlContent.encode("utf-8"))
+            f.write(xmljson.json_to_xml(self.json).encode("utf-8"))
             # f.write(self.xmlContent)
             f.write(wavetable_data)
 
@@ -146,7 +274,9 @@ class FXP:
                 92 + patchHeader.xmlSize :
             ]  # f.read()
 
-            assert len(prgName.strip(b'\x00')) <= 28, "Program name must be at most 28 bytes long"
+            assert (
+                len(prgName.strip(b"\x00")) <= 28
+            ), "Program name must be at most 28 bytes long"
 
         return FXP(
             chunkmagic,
@@ -157,11 +287,11 @@ class FXP:
             fxVersion,
             numPrograms,
             # prgName,
-            prgName.strip(b'\x00').decode('utf-8'),
+            prgName.strip(b"\x00").decode("utf-8"),
             chunkSize,
             patchHeader,
             # xml_content,
-            xml_content.decode('utf-8'),
+            xml_content.decode("utf-8"),
             [wavetables],
         )
 
